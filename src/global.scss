@@ -1,0 +1,14 @@
+* {
+  font-family:"Microsoft YaHei",微软雅黑,"Microsoft JhengHei",华文细黑,STHeiti,MingLiu;
+  color: #2c3e50;
+  margin: 0;
+  padding: 0;
+}
+$marginGap: 18px;
+#app {
+  position: fixed;
+  top: $marginGap;
+  left: $marginGap;
+  bottom: $marginGap;
+  right: $marginGap;
+}

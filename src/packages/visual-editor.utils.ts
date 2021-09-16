@@ -6,6 +6,8 @@ export interface VisualEditorBlockData {
   width: number, // 组件的宽度
   height: number, // 组件的高度
   zIndex: number, // 组件的定位的 z-index 值
+  adjustPosition?: boolean, // 是否首次拖动调整组件位于居中的位置
+  focus: boolean, // 是否为选中状态
 }
 
 // 原始数据格式
@@ -22,6 +24,27 @@ export interface ComponentConfig {
   label: string,
   preview: (value: any) => typeof value,
   render: (value: any) => typeof value
+}
+
+export function createNewBlock({
+  component,
+  top,
+  left
+} : {
+  component: ComponentConfig,
+  top: number,
+  left: number,
+}): VisualEditorBlockData {
+  return {
+    top,
+    left,
+    key: component!.key,
+    adjustPosition: true,
+    focus: false,
+    width: 0,
+    height: 0,
+    zIndex: 0,
+  }
 }
 
 export interface EditorConfig {

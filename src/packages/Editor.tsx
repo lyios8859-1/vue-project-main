@@ -1,9 +1,8 @@
 import { defineComponent, reactive, PropType, ref, computed, provide} from 'vue';
 import classnames from './Editor.module.scss';
-import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData} from './visual-editor.utils';
+import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
-import deepcopy from 'deepcopy';
 
 export default defineComponent({
   name: 'VisualEditor',
@@ -22,6 +21,9 @@ export default defineComponent({
     "update:modelValue": (val?: VisualEditorModelValue) => val,
   },
   setup(props, { emit }) {
+
+    const setPrefix = (suffix: string)  => 'ly-visual-editor' + '-' + suffix;
+
     const config = reactive(registerConfig);
     provide<EditorConfig>('config', config);
 
@@ -43,7 +45,7 @@ export default defineComponent({
 
     const canvasContentRef = ref(null as null | {} as HTMLDivElement);
 
-    const methods = {
+    const stateMethods = {
       toggleHandleEdit: () => {
         state.editing = !state.editing;
       },
@@ -51,74 +53,137 @@ export default defineComponent({
         state.preview = !state.preview;
       }
     }
-    const setPrefix = (suffix: string)  => 'ly-visual-editor' + '-' + suffix;
 
-    let currentComponent = null as null | VisualEditorBlockData;
-
-    const canvasHandler = {
-      dragenter: (e: DragEvent) => {
-        e.dataTransfer!.dropEffect = 'move';
-      },
-      dragover: (e: DragEvent) => {
-        e.preventDefault();
-      },
-      dragleave: (e: DragEvent) => {
-        e.dataTransfer!.dropEffect = 'none';
-      },
-      drop: (e: DragEvent) => {
-        const blocks = dataModel.value.blocks;
-
-        dataModel.value = {
-          ...dataModel.value,
-          blocks: [
-            ...blocks,
-            {
-              top: e.offsetY,
-              left: e.offsetX,
-              key: currentComponent!.key
-            }
-          ]
+    //#region 菜单拖动
+    const menuHandlers = (() => {
+      let currentComponent = null as null | ComponentConfig;
+  
+      // 画布容器事件
+      const canvasHandler = {
+        dragenter: (e: DragEvent) => {
+          e.dataTransfer!.dropEffect = 'move';
+        },
+        dragover: (e: DragEvent) => {
+          e.preventDefault();
+        },
+        dragleave: (e: DragEvent) => {
+          e.dataTransfer!.dropEffect = 'none';
+        },
+        drop: (e: DragEvent) => {
+          const blocks = dataModel.value.blocks || [];
+  
+          blocks.push(createNewBlock({
+            component: currentComponent!,
+            top: e.offsetY,
+            left: e.offsetX
+          }));
+          dataModel.value = {...dataModel.value, blocks};
+  
+          emit('update:modelValue', dataModel.value);
         }
-      
-
-        emit('update:modelValue', dataModel.value);
-        currentComponent = null;
       }
-    }
 
-    const handler = {
-      dragstart: (el: HTMLElement, component: ComponentConfig) => {
-        canvasContentRef.value.addEventListener('dragenter', canvasHandler.dragenter);
-        canvasContentRef.value.addEventListener('dragover', canvasHandler.dragover);
-        canvasContentRef.value.addEventListener('dragleave', canvasHandler.dragleave);
-        canvasContentRef.value.addEventListener('drop', canvasHandler.drop);
-      },
-      dragend: (el: HTMLElement, component: ComponentConfig) => {
-        el.draggable = false;
-        state.currentIdnex = -1;
-
-        el.ondragstart = null;
-        el.ondragend = null;
+      const handler = {
+        dragstart: (el: HTMLElement, component: ComponentConfig, index: number) => {
+          canvasContentRef.value.addEventListener('dragenter', canvasHandler.dragenter);
+          canvasContentRef.value.addEventListener('dragover', canvasHandler.dragover);
+          canvasContentRef.value.addEventListener('dragleave', canvasHandler.dragleave);
+          canvasContentRef.value.addEventListener('drop', canvasHandler.drop);
+          
+          currentComponent = component;
+          state.currentIdnex = index;
+        },
+        dragend: (el: HTMLElement, component: ComponentConfig) => {
+          el.draggable = false;
+          state.currentIdnex = -1;
+  
+          el.ondragstart = null;
+          el.ondragend = null;
+  
+          currentComponent = null;
+  
+          canvasContentRef.value.removeEventListener('dragenter', canvasHandler.dragenter);
+          canvasContentRef.value.removeEventListener('dragover', canvasHandler.dragover);
+          canvasContentRef.value.removeEventListener('dragleave', canvasHandler.dragleave);
+          canvasContentRef.value.removeEventListener('drop', canvasHandler.drop);
+        }
       }
-    }
 
-    const menuHandler = {
-      mousedown: (e: Event, component: ComponentConfig, index: number) => {
-        const target = e.currentTarget as HTMLElement;
-        target.draggable = true;
-        state.currentIdnex = index;
+      // 菜单项目容器事件
+      const menuHandler = {
+        mousedown: (e: Event, component: ComponentConfig, index: number) => {
+          const target = e.currentTarget as HTMLElement;
+  
+          target.draggable = true;
+          target.ondragstart = () => handler.dragstart(target, component, index);
+          target.ondragend = () => handler.dragend(target, component);  
+        },
+        mouseup: (e: Event, component: ComponentConfig) => {
+          const target = e.currentTarget as HTMLElement;
+          target.draggable = false;
+          state.currentIdnex = -1;
+          target.ondragstart = null;
+          target.ondragend = null;
+        }
+      }
 
-        currentComponent = component;
+      return menuHandler;
+    })();
+    //#endregion
 
-        target.ondragstart = () => handler.dragstart(target, component);
-        target.ondragend = () => handler.dragend(target, component);  
-      },
-      mouseup: (e: Event, component: ComponentConfig) => {
-        const target = e.currentTarget as HTMLElement;
-        target.draggable = false;
-        state.currentIdnex = -1;
-        target.ondragstart = null;
-        target.ondragend = null;
+    //#region 画布容器中组件是否激活事件/拖动
+    const methods = {
+      /**
+       * 清除选中状态
+       */
+      clearFocus: (block?: VisualEditorBlockData) => {
+        let blocks = dataModel.value.blocks || [];
+        if (!blocks.length) return;
+        if (!!block) {
+          blocks = blocks.filter(item => item !== block);
+        }
+        blocks.forEach(b => b.focus = false);
+      }
+    };
+    const focusHandler = (() => {
+      return {
+        container: {
+          onMousedown: (e: MouseEvent) => {
+            // 如果是非预览状态返回
+            if (!state.preview) return;
+            e.stopPropagation();
+            e.preventDefault();
+
+            if (!e.shiftKey) {
+              // 点击空白处,清除所有的选中状态
+              methods.clearFocus();
+            }
+          }
+        },
+        block: {
+          onMousedown: (e: MouseEvent, block: VisualEditorBlockData, index: number) => {
+            // 如果是非预览状态返回
+            if (!state.preview) return;
+            // 编辑状态下阻止默认事件和事件冒泡
+            e.stopPropagation();
+            e.preventDefault();
+             // 这种是点击本身也会取消选中状态
+            if (e.shiftKey) {
+              // 若按住了 shift 键, 此时没有选中,
+              block.focus = !block.focus;
+            } else {
+              block.focus = true;
+              methods.clearFocus(block);
+            }
+          }
+        }
+      }
+    })();
+    //#endregion
+
+    const otherHandler = {
+      onContextmenu: (e: MouseEvent, block: VisualEditorBlockData) => {
+
       }
     }
 
@@ -151,7 +216,7 @@ export default defineComponent({
         label: () => state.preview ? '预览' : '编辑',
         icon: () => state.preview ? 'icon-browse' : 'icon-edit',
         handler: () => {
-          methods.tiggleHandlePreview();
+          stateMethods.tiggleHandlePreview();
           console.log(state.preview ? '预览' : '编辑')
         }
       },
@@ -159,7 +224,7 @@ export default defineComponent({
         label: '关闭',
         icon: 'icon-close',
         handler: () => {
-          methods.toggleHandleEdit();
+          stateMethods.toggleHandleEdit();
         }
       },
     ];
@@ -174,8 +239,8 @@ export default defineComponent({
                 config?.componentList.map((component, index) => {
                   return (<>
                     <div
-                      onMousedown={e => menuHandler.mousedown(e, component, index)}
-                      onMouseup={e => menuHandler.mouseup(e, component)}
+                      onMousedown={e => menuHandlers.mousedown(e, component, index)}
+                      onMouseup={e => menuHandlers.mouseup(e, component)}
                       class={[classnames['editor-left-item'], state.currentIdnex === index && classnames['drag']]}
                     >
                       <p style={{pointerEvents: 'none'}} class={classnames['label']}>{component.label}</p>
@@ -217,6 +282,7 @@ export default defineComponent({
                   class={[classnames[setPrefix('container-canvas-content')], classnames[state.preview ? 'isEditOrpreview' : '']]}
                   style={containerStyles.value}
                   ref={canvasContentRef}
+                  {...focusHandler.container}
                 >
                   {
                     dataModel.value.blocks?.map((block, index) => {
@@ -224,6 +290,10 @@ export default defineComponent({
                         <EditorBlock
                           key={index}  
                           block={block}
+                          {...{
+                            onMousedown: (ev: MouseEvent) => focusHandler.block.onMousedown(ev, block, index),
+                            onContextmenu: (ev: MouseEvent) => otherHandler.onContextmenu(ev, block)
+                          }}
                         />
                       )
                     })
@@ -236,7 +306,7 @@ export default defineComponent({
           </div>
         ) : (
           <div class={[classnames['ly-visual-editor-preview'], classnames['ly-custom-bar']]}>
-            <span class={classnames['preview-editor']} onClick={methods.toggleHandleEdit}>继续编辑</span>
+            <span class={classnames['preview-editor']} onClick={stateMethods.toggleHandleEdit}>继续编辑</span>
             <div
               class={[classnames[setPrefix('container-canvas-content')], classnames['preview']]}
               style={containerStyles.value}

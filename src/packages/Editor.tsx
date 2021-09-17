@@ -1,5 +1,5 @@
 import { defineComponent, reactive, PropType, ref, computed, provide} from 'vue';
-import classnames from './Editor.module.scss';
+import classnames from './styles/Editor.module.scss';
 import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
@@ -37,13 +37,26 @@ export default defineComponent({
       height: `${dataModel.value.container.height}px`
     }));
 
+    const canvasSelectedIndex = ref(-1); // 记录当前选中组件的索引
     const state = reactive({
+      selectedBlock: computed(() => (dataModel.value.blocks || [])[canvasSelectedIndex.value]), // 当前选中的组件，
       editing: true,
       preview: true,
-      currentIdnex: -1,
+      menuSelectedIndex: -1, // 记录当前菜单拖动组件的索引, 用于判断是否要拖动当前菜单的组件
     })
 
     const canvasContentRef = ref(null as null | {} as HTMLDivElement);
+
+    // 筛选出选中和未选中数据
+    const focusData = computed(() => {
+      const focus: VisualEditorBlockData[] = [];
+      const unFocus: VisualEditorBlockData[] = [];
+      (dataModel.value.blocks || []).forEach((block: VisualEditorBlockData) => (block.focus ? focus : unFocus).push(block));
+      return {
+        unFocus, // 未选中的数据
+        focus
+      }
+    });
 
     const stateMethods = {
       toggleHandleEdit: () => {
@@ -55,7 +68,7 @@ export default defineComponent({
     }
 
     //#region 菜单拖动
-    const menuHandlers = (() => {
+    const menuDraggier = (() => {
       let currentComponent = null as null | ComponentConfig;
   
       // 画布容器事件
@@ -91,11 +104,11 @@ export default defineComponent({
           canvasContentRef.value.addEventListener('drop', canvasHandler.drop);
           
           currentComponent = component;
-          state.currentIdnex = index;
+          state.menuSelectedIndex = index;
         },
         dragend: (el: HTMLElement, component: ComponentConfig) => {
           el.draggable = false;
-          state.currentIdnex = -1;
+          state.menuSelectedIndex = -1;
   
           el.ondragstart = null;
           el.ondragend = null;
@@ -121,7 +134,7 @@ export default defineComponent({
         mouseup: (e: Event, component: ComponentConfig) => {
           const target = e.currentTarget as HTMLElement;
           target.draggable = false;
-          state.currentIdnex = -1;
+          state.menuSelectedIndex = -1;
           target.ondragstart = null;
           target.ondragend = null;
         }
@@ -131,7 +144,44 @@ export default defineComponent({
     })();
     //#endregion
 
-    //#region 画布容器中组件是否激活事件/拖动
+    //#region 画布容器中组件拖动
+    const blockDraggier = (() => {
+      let dragState = {
+        startX: 0,
+        startY: 0,
+        startPos: [] as { left: number, top: number }[]
+      };
+      const mousemove = (e: MouseEvent) => {
+        const durX = e.clientX - dragState.startX;
+        const durY = e.clientY - dragState.startY;
+        focusData.value.focus.forEach((block, index) => {
+          block.left = dragState.startPos[index].left + durX;
+          block.top = dragState.startPos[index].top + durY;
+        });
+      }
+
+      const mouseup = () => {
+        document.removeEventListener('mousemove', mousemove);
+        document.removeEventListener('mouseup', mouseup);
+      }
+
+      const mousedown = (e: MouseEvent) => {
+        dragState = {
+          startX: e.clientX,
+          startY: e.clientY,
+          startPos: focusData.value.focus.map(({ top, left }) => ({ top, left })),
+        }
+        document.addEventListener('mousemove', mousemove);
+        document.addEventListener('mouseup', mouseup);
+      }
+
+      return {
+        mousedown
+      };
+    })();
+    //#endregion
+
+    //#region 画布容器中组件是否激活事件
     const methods = {
       /**
        * 清除选中状态
@@ -157,6 +207,8 @@ export default defineComponent({
             if (!e.shiftKey) {
               // 点击空白处,清除所有的选中状态
               methods.clearFocus();
+              // 等 -1 就是数组中不存在了, 没有选中
+              canvasSelectedIndex.value = -1;
             }
           }
         },
@@ -167,14 +219,26 @@ export default defineComponent({
             // 编辑状态下阻止默认事件和事件冒泡
             e.stopPropagation();
             e.preventDefault();
-             // 这种是点击本身也会取消选中状态
+            // 这种是点击本身也会取消选中状态
             if (e.shiftKey) {
               // 若按住了 shift 键, 此时没有选中,
-              block.focus = !block.focus;
+              if (focusData.value.focus.length <= 1) {
+                block.focus = true;
+              } else {
+                block.focus = !block.focus;
+              }
             } else {
-              block.focus = true;
-              methods.clearFocus(block);
+              if (!block.focus) {
+                block.focus = true;
+                // 排除当前 block
+                methods.clearFocus(block);
+              }
             }
+
+            // 记录画布区域选中的当前组件
+            canvasSelectedIndex.value = index;
+            // 监听鼠标按下的事件
+            blockDraggier.mousedown(e);
           }
         }
       }
@@ -239,9 +303,9 @@ export default defineComponent({
                 config?.componentList.map((component, index) => {
                   return (<>
                     <div
-                      onMousedown={e => menuHandlers.mousedown(e, component, index)}
-                      onMouseup={e => menuHandlers.mouseup(e, component)}
-                      class={[classnames['editor-left-item'], state.currentIdnex === index && classnames['drag']]}
+                      onMousedown={e => menuDraggier.mousedown(e, component, index)}
+                      onMouseup={e => menuDraggier.mouseup(e, component)}
+                      class={[classnames['editor-left-item'], state.menuSelectedIndex === index && classnames['drag']]}
                     >
                       <p style={{pointerEvents: 'none'}} class={classnames['label']}>{component.label}</p>
                       <div style={{width: '44%', textAlign: 'center', pointerEvents: 'none'}}>{component.preview({})}</div>

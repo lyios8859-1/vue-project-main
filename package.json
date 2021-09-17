@@ -1,13 +1,13 @@
 {
   "name": "dev",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build"
   },
   "dependencies": {
     "deepcopy": "^2.1.0",
-    "element-plus": "^1.0.2-beta.71",
+    "element-plus": "^1.1.0-beta.12",
     "vue": "^3.2.4"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 import { computed, defineComponent, inject, onMounted, PropType, ref } from "vue";
 import { EditorConfig, VisualEditorBlockData } from "./visual-editor.utils";
 
-import classnames from "./EditorBlock.module.scss";
+import classnames from "./styles/EditorBlock.module.scss";
 
 export default defineComponent({
   props: {

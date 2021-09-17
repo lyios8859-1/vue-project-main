@@ -3,6 +3,7 @@ import classnames from './styles/Editor.module.scss';
 import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
+import { useVisualCommand } from './visual.command';
 
 export default defineComponent({
   name: 'VisualEditor',
@@ -154,6 +155,7 @@ export default defineComponent({
       const mousemove = (e: MouseEvent) => {
         const durX = e.clientX - dragState.startX;
         const durY = e.clientY - dragState.startY;
+        // 拖动选中的组件
         focusData.value.focus.forEach((block, index) => {
           block.left = dragState.startPos[index].left + durX;
           block.top = dragState.startPos[index].top + durY;
@@ -251,6 +253,8 @@ export default defineComponent({
       }
     }
 
+    const commander = useVisualCommand();
+
     //#region 操作栏按钮组
     const buttons = [
       {
@@ -258,6 +262,7 @@ export default defineComponent({
         icon: "icon-back",
         handler: () => {
           console.log("撤销");
+          commander.undo();
         },
         tip: "ctrl+z",
       },
@@ -266,8 +271,19 @@ export default defineComponent({
         icon: "icon-forward",
         handler: () => {
           console.log("重做");
+          commander.redo();
         },
         tip: "ctrl+y, ctrl+shift+z",
+      },
+      {
+        label: "删除",
+        icon: "icon-delete",
+        handler: () => {
+          // 删除就是保留未选中的
+          console.log("删除");
+          commander.delete();
+        },
+        tip: "ctrl+d, backspace, delete",
       },
       {
         label: "清空",

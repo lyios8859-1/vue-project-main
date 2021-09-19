@@ -195,6 +195,12 @@ export default defineComponent({
           blocks = blocks.filter(item => item !== block);
         }
         blocks.forEach(b => b.focus = false);
+      },
+      updataBlocks: (blocks?: VisualEditorBlockData[]) => {
+        dataModel.value = {
+          ...dataModel.value,
+          blocks
+        }
       }
     };
     const focusHandler = (() => {
@@ -253,7 +259,11 @@ export default defineComponent({
       }
     }
 
-    const commander = useVisualCommand();
+    const commander = useVisualCommand({
+      focusData,
+      dataModel,
+      updataBlocks: methods.updataBlocks,
+    });
 
     //#region 操作栏按钮组
     const buttons = [

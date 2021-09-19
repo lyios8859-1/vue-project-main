@@ -1,6 +1,22 @@
 import { useCommander } from './plugins/command.plugin';
+import { VisualEditorBlockData, VisualEditorModelValue } from './visual-editor.utils';
 
-export function useVisualCommand () {
+export function useVisualCommand ({
+    focusData,
+    dataModel,
+    updataBlocks
+} : {
+    focusData: {
+        value: {
+            focus: VisualEditorBlockData[],
+            unFocus: VisualEditorBlockData[]
+        }
+    },
+    dataModel: {
+        value: VisualEditorModelValue
+    },
+    updataBlocks: (blocks: VisualEditorBlockData[]) => void,
+}) {
     const commander = useCommander();
 
 
@@ -10,16 +26,18 @@ export function useVisualCommand () {
         keyboard: ['backspace', 'delete', 'ctrl+d'],
         execute: () => {
             const data = {
-                before: [],
-                after: []
+                before: dataModel.value.blocks || [],
+                after: focusData.value.unFocus
             }
             console.log('删除命令');
             return {
                 redo: () => {
                     console.log('触发删除命令');
+                    updataBlocks(data.after);
                 },
                 undo: () => {
                     console.log('撤销了删除命令');
+                    updataBlocks(data.before);
                 }
             }
         }

@@ -25,7 +25,24 @@ export interface ComponentConfig {
   preview: (value: any) => typeof value,
   render: (value: any) => typeof value
 }
-
+export interface VisualDragEvent {
+  on: {
+    dragstart: (cb: () => void) => void;
+    dragend: (cb: () => void) => void;
+  };
+  once: {
+    dragstart: (cb: () => void) => void;
+    dragend: (cb: () => void) => void;
+  };
+  off: {
+    dragstart: (cb: () => void) => void;
+    dragend: (cb: () => void) => void;
+  };
+  emit: {
+    dragstart: (cb: () => void) => void;
+    dragend: (cb: () => void) => void;
+  }
+}
 export function createNewBlock({
   component,
   top,

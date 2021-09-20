@@ -1,12 +1,8 @@
-import { createApp, ref } from 'vue'
+import { createApp } from 'vue';
 
-import VisualEditor from './packages';
-import { VisualEditorModelValue } from './packages/visual-editor.utils';
-import datas from './data.json';
+import App from './App.vue';
 import 'element-plus/dist/index.css';
-const d = ref(datas);
-const app = createApp(<VisualEditor
-  v-model={d.value as VisualEditorModelValue}
-/>);
+
+const app = createApp(App);
 
 app.mount('#app');

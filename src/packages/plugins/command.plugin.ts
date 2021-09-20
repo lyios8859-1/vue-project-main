@@ -21,10 +21,16 @@ export function useCommander() {
         current: -1, // 记录当前命令队列的索引, 重做会 +1, 撤销会 -1
         queue: [] as CommandExecute[], // 存放操作的命令容器队列
         commands: {} as Record<string, (...args: any[]) => void>, // Command 的 name 的映射
+        registerCommands: [] as Command[], // 保存注册时所有的命令对象数组容器
+        destroyList: [] as ((() => void) | undefined)[], // 组件销毁的时候，需要调用的销毁逻辑数组容器, 比如初始化的时候拖拽事件的监听,销毁时,需要移除的
     })
 
     // 注册各个命令操作
     const registry = (command: Command) => {
+
+        // 添加命令信息
+        state.registerCommands.push(command);
+
         state.commands[command.name] = (...args) => {
             // console.log('执行最终的 executer', state.queue)
             const { undo, redo } = command.execute(...args);
@@ -55,7 +61,6 @@ export function useCommander() {
         // 命令执行是执行的函数,做点啥
         return {
             redo: () => {
-                debugger;
                 if (state.current === -1) return;
 
                 const queueCommands = state.queue[state.current];
@@ -74,7 +79,6 @@ export function useCommander() {
         followQueue: false, // 不需要放入命令队列 queue 里面
         keyboard: ["ctrl+y", "ctrl+shift+z"],
         execute: () => {
-            debugger;
             return {
                 redo: () => {
                     const queueCommands = state.queue[state.current + 1];
@@ -88,10 +92,16 @@ export function useCommander() {
     });
     //#endregion
 
-
-
+    // 有些命令注册时需要一些初始化操作,比如初始化监听的拖拽 dragstart dragend 事件
+    const init = () => {
+        // 执行命令注册时的初始化, init 函数, 比如拖拽添加时的操作,需要对
+        state.registerCommands.forEach(command => {
+            command.init && state.destroyList.push(command.init());
+        });
+    };
     return {
         registry,
-        state
+        state,
+        init
     }
 }

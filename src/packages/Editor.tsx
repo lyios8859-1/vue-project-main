@@ -1,9 +1,10 @@
 import { defineComponent, reactive, PropType, ref, computed, provide} from 'vue';
 import classnames from './styles/Editor.module.scss';
-import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock} from './visual-editor.utils';
+import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock, VisualDragEvent} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
 import { useVisualCommand } from './visual.command';
+import { usePlainEvent } from "./plugins/event";
 
 export default defineComponent({
   name: 'VisualEditor',
@@ -18,15 +19,44 @@ export default defineComponent({
       required: false
     }
   },
-  emits: {
-    "update:modelValue": (val?: VisualEditorModelValue) => val,
-  },
+  emits: ['update:modelValue', 'dragstart', 'dragend']
+  // {
+  //   "update:modelValue": (val?: VisualEditorModelValue) => val,
+  //   "dragstart": (val?: VisualEditorBlockData) => val,
+  //   "dragend": (val?: VisualEditorBlockData) => val
+  // }
+  ,
   setup(props, { emit }) {
 
     const setPrefix = (suffix: string)  => 'ly-visual-editor' + '-' + suffix;
 
     const config = reactive(registerConfig);
     provide<EditorConfig>('config', config);
+
+    //#region 发布订阅模式,处理事件
+    const useEvent = usePlainEvent({
+      dragstart: () => {
+        // 触发的时候可以做点其他操作
+        // console.log("doStart");
+        emit("dragstart", dataModel.value.blocks); // 向外触发
+      },
+      dragend: () => {
+        // 触发的时候可以做点其他操作
+        // console.log("dragend");
+        emit("dragend", dataModel.value.blocks); // 向外触发
+      },
+    });
+    
+    provide<VisualDragEvent>('drag', useEvent); // 提供给子组件用的事件
+
+
+    // useEvent.on.dragstart(() => {
+    //   console.log("放置组件到容器之前做点什么");
+    // });
+    // useEvent.on.dragend(() => {
+    //   console.log("放置组件到容器之后做点什么");
+    // });
+    //#endregion
 
     // 数据源
     const dataModel = ref(props.modelValue as VisualEditorModelValue);
@@ -92,8 +122,8 @@ export default defineComponent({
             left: e.offsetX
           }));
           dataModel.value = {...dataModel.value, blocks};
-  
-          emit('update:modelValue', dataModel.value);
+
+          useEvent.emit.dragend();
         }
       }
 
@@ -106,6 +136,7 @@ export default defineComponent({
           
           currentComponent = component;
           state.menuSelectedIndex = index;
+          useEvent.emit.dragstart();
         },
         dragend: (el: HTMLElement, component: ComponentConfig) => {
           el.draggable = false;
@@ -165,6 +196,7 @@ export default defineComponent({
       const mouseup = () => {
         document.removeEventListener('mousemove', mousemove);
         document.removeEventListener('mouseup', mouseup);
+        useEvent.emit.dragend();
       }
 
       const mousedown = (e: MouseEvent) => {
@@ -175,6 +207,7 @@ export default defineComponent({
         }
         document.addEventListener('mousemove', mousemove);
         document.addEventListener('mouseup', mouseup);
+        useEvent.emit.dragstart();
       }
 
       return {
@@ -263,6 +296,7 @@ export default defineComponent({
       focusData,
       dataModel,
       updataBlocks: methods.updataBlocks,
+      event: useEvent
     });
 
     //#region 操作栏按钮组
@@ -300,6 +334,7 @@ export default defineComponent({
         icon: "icon-reset",
         handler: () => {
           console.log("清空");
+          commander.clear();
         },
       },
       {

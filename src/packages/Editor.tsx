@@ -255,6 +255,10 @@ export default defineComponent({
             e.stopPropagation();
             e.preventDefault();
 
+            if (e.currentTarget !== e.target) {
+              return;
+            }
+
             if (!e.shiftKey) {
               // 点击空白处,清除所有的选中状态
               methods.clearFocus();

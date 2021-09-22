@@ -1,4 +1,5 @@
 import { defineComponent, reactive, PropType, ref, computed, provide} from 'vue';
+import "./styles/iconfont.scss";
 import classnames from './styles/Editor.module.scss';
 import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock, VisualDragEvent} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
@@ -181,9 +182,15 @@ export default defineComponent({
       let dragState = {
         startX: 0,
         startY: 0,
-        startPos: [] as { left: number, top: number }[]
+        startPos: [] as { left: number, top: number }[],
+        dragging: false,
       };
       const mousemove = (e: MouseEvent) => {
+
+        if (!dragState.dragging) {
+          dragState.dragging = true;
+          useEvent.emit.dragstart();
+        }
         const durX = e.clientX - dragState.startX;
         const durY = e.clientY - dragState.startY;
         // 拖动选中的组件
@@ -196,7 +203,10 @@ export default defineComponent({
       const mouseup = () => {
         document.removeEventListener('mousemove', mousemove);
         document.removeEventListener('mouseup', mouseup);
-        useEvent.emit.dragend();
+        if (dragState.dragging === true) {
+          dragState.dragging = false;
+          useEvent.emit.dragend();
+        }
       }
 
       const mousedown = (e: MouseEvent) => {
@@ -204,10 +214,10 @@ export default defineComponent({
           startX: e.clientX,
           startY: e.clientY,
           startPos: focusData.value.focus.map(({ top, left }) => ({ top, left })),
+          dragging: false
         }
         document.addEventListener('mousemove', mousemove);
         document.addEventListener('mouseup', mouseup);
-        useEvent.emit.dragstart();
       }
 
       return {
@@ -391,10 +401,13 @@ export default defineComponent({
                     >
                       <i class={`iconfont ${icon}`}></i>
                       <span>{label}</span>
-                      {btn.tip && <span class={classnames['tip']}>{btn.tip}</span>}
                     </div>
                   );
-                  return button;
+                  return !btn.tip ? button : (
+                    <el-tooltip effect="dark" content={btn.tip} placement="bottom">
+                      {button}
+                    </el-tooltip>
+                  );
                 })
               }
             </div>

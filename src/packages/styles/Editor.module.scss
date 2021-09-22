@@ -81,10 +81,17 @@ $containerBg: rgba(#000, 0.1);
       padding: 2px 5px;
       cursor: pointer;
       background-color: rgba(#8f8f8f, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      span, i {
+        color: #fdfdfd;
+      }
       &:hover {
-        background-color: #aaa;
-        span {
-          color: #fff;
+        background-color:#fff;
+        span, i {
+          color: skyblue;
         }
       }
       &.gap:not(:last-child) {
@@ -95,17 +102,6 @@ $containerBg: rgba(#000, 0.1);
       }
       &.gap:last-child {
         border-radius: 0 3px 3px 0;
-      }
-      .tip {
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translate(-50%, 0%);
-        display: none;
-        width: 100%;
-      }
-      &:hover .tip {
-        display: block;
       }
     }
   }

@@ -119,24 +119,41 @@ export function useVisualCommand ({
         }
     })
     /*初始化命令以及事件*/
-      commander.init(); // 自动触发 init
+    commander.init(); // 自动触发 init
 
+
+    // Ctrl + a 全选命令注册
+    commander.registry({
+        name: 'selectAll',
+        followQueue: false, // 不需要存放到命令队列
+        keyboard: 'ctrl+a',
+        execute: () => {
+            return {
+                redo: () => {
+                    (dataModel.value.blocks || []).forEach(block => block.focus = true);
+                },
+                undo: () => {
+                    return;
+                }
+            }
+        }
+    })
 
     return {
         undo: () => {
-            console.log('undo');
+            // console.log('undo');
             commander.state.commands.undo();
         },
         redo: () => {
-            console.log('redo');
+            // console.log('redo');
             commander.state.commands.redo();
         },
         delete: () => {
-            console.log('delete');
+            // console.log('delete');
             commander.state.commands.delete();
         },
         clear: () => {
-            console.log('clear');
+            // console.log('clear');
             commander.state.commands.clear();
         }
     }

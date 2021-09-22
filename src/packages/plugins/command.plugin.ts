@@ -1,4 +1,6 @@
-import { reactive } from "vue";
+import { reactive, onUnmounted } from "vue";
+
+import { KeyboardCode } from './keyboard-code';
 
 export interface CommandExecute {
     undo?: () => void; // 撤销, 将做的事情还原,将此次做的事情回归到上一次的操作
@@ -92,13 +94,48 @@ export function useCommander() {
     });
     //#endregion
 
+    const keyboardEvent = (() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            console.log(document.activeElement ,document.body);
+            
+            // fix 快捷键和浏览器的事件冲突
+            if (document.activeElement !== document.body) return;
+            const { shiftKey, ctrlKey, altKey, keyCode, metaKey } = e;
+            const keyString: string[] = []; // 生成快捷组合鍵容器
+            if (ctrlKey || metaKey) keyString.push('ctrl');
+            if (shiftKey) keyString.push('shift');
+            if (altKey) keyString.push('alt');
+
+            keyString.push(KeyboardCode[keyCode]);
+            const keyNames = keyString.join('+');
+
+            state.registerCommands.forEach(({keyboard, name}) => {
+                if (!keyboard) return;
+                const keys = Array.isArray(keyboard) ? keyboard : [keyboard];
+                if(keys.indexOf(keyNames) > -1){
+                    state.commands[name](); // 执行对应的命令
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            })
+        }
+        const initEvent = () => {
+            window.addEventListener('keydown', onKeyDown);
+            return () => window.removeEventListener('keydown', onKeyDown);
+        }
+        return initEvent;
+    })();
+
     // 有些命令注册时需要一些初始化操作,比如初始化监听的拖拽 dragstart dragend 事件
     const init = () => {
         // 执行命令注册时的初始化, init 函数, 比如拖拽添加时的操作,需要对
         state.registerCommands.forEach(command => {
             command.init && state.destroyList.push(command.init());
         });
+        state.destroyList.push(keyboardEvent());
     };
+
+    onUnmounted(() => state.destroyList.forEach(fn => fn && fn()));
     return {
         registry,
         state,

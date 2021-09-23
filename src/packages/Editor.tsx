@@ -305,7 +305,6 @@ export default defineComponent({
     })();
     //#endregion
 
-
     const commander = useVisualCommand({
       focusData,
       dataModel,
@@ -397,6 +396,8 @@ export default defineComponent({
         icon: 'icon-export',
         handler: () => $$dialog.textarea(JSON.stringify(dataModel.value), '导出的JSON数据', { editReadonly: true })
       },
+      { label: '置顶', icon: 'icon-place-top', handler: () => commander.placeTop(), tip: 'ctrl+up' },
+      { label: '置底', icon: 'icon-place-bottom', handler: () => commander.placeBottom(), tip: 'ctrl+down' },
       {
         label: () => state.preview ? '预览' : '编辑',
         icon: () => state.preview ? 'icon-browse' : 'icon-edit',

@@ -1,13 +1,16 @@
 import { defineComponent, reactive, PropType, ref, computed, provide} from 'vue';
+import { ElMessageBox } from 'element-plus';
+
 import "./styles/iconfont.scss";
 import classnames from './styles/Editor.module.scss';
+
 import { ComponentConfig, EditorConfig, VisualEditorModelValue, VisualEditorBlockData, createNewBlock, VisualDragEvent} from './visual-editor.utils';
 import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
 import { useVisualCommand } from './visual.command';
 import { usePlainEvent } from "./plugins/event";
 import { $$dialog } from './utils/dialog-service';
-import { ElMessageBox } from 'element-plus';
+import { $$dropdown, DropdwonOption } from './utils/dropdown-service';
 
 export default defineComponent({
   name: 'VisualEditor',
@@ -241,7 +244,7 @@ export default defineComponent({
         }
         blocks.forEach(b => b.focus = false);
       },
-      updataBlocks: (blocks?: VisualEditorBlockData[]) => {
+      updateBlocks: (blocks?: VisualEditorBlockData[]) => {
         dataModel.value = {
           ...dataModel.value,
           blocks
@@ -302,18 +305,43 @@ export default defineComponent({
     })();
     //#endregion
 
-    const otherHandler = {
-      onContextmenu: (e: MouseEvent, block: VisualEditorBlockData) => {
-
-      }
-    }
 
     const commander = useVisualCommand({
       focusData,
       dataModel,
-      updataBlocks: methods.updataBlocks,
+      updateBlocks: methods.updateBlocks,
       event: useEvent
     });
+
+    const otherHandler = {
+      onContextmenu: (e: MouseEvent, block: VisualEditorBlockData) => {
+        if (!state.preview) return; // 预览状态就返回
+        e.preventDefault();
+        e.stopPropagation();
+        $$dropdown({
+          reference: e,
+          content: () => (<>
+            <DropdwonOption label="置顶节点" icon="icon-place-top" {...{onClick: commander.placeTop}}/>
+            <DropdwonOption label="置底节点" icon="icon-place-bottom" {...{onClick: commander.placeBottom}}/>
+            <DropdwonOption label="删除节点" icon="icon-delete" {...{onClick: commander.delete}}/>
+            <DropdwonOption label="查看数据" icon="icon-browse" {...{onClick: () => otherHandler.showBlockData(block)}}/>
+            <DropdwonOption label="导入节点" icon="icon-import" {...{onClick: () => otherHandler.importBlockData(block)}}/>
+          </>)
+        });
+      },
+      showBlockData: (block: VisualEditorBlockData) => {
+        $$dialog.textarea(JSON.stringify(block, null, 2), '节点数据', { editReadonly: true });
+      },
+      importBlockData: async (block: VisualEditorBlockData) => {
+        const text = await $$dialog.textarea('', '请输入节点 JSON 字符串');
+        try {
+          const data = JSON.parse(text || '');
+          commander.updateBlock(data, block); // 更新数据显示到页面
+        } catch (e) {
+          ElMessageBox.alert('解析json字符串出错');
+        }
+      }
+    }
 
     //#region 操作栏按钮组
     const buttons = [

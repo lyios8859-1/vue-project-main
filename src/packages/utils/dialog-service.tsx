@@ -1,6 +1,6 @@
 import { ElButton, ElDialog, ElInput } from 'element-plus';
 import { createApp, defineComponent, getCurrentInstance, PropType, reactive, Prop } from 'vue';
-import { defer } from './defder';
+import { defer } from './defer';
 
 enum DialogServiceEditType {
   textarea = 'textarea',

@@ -2,12 +2,12 @@ import deepcopy from 'deepcopy';
 import { useCommander } from './plugins/command.plugin';
 import { VisualEditorBlockData, VisualEditorModelValue } from './visual-editor.utils';
 
-export function useVisualCommand ({
+export function useVisualCommand({
     focusData,
     dataModel,
-    updataBlocks,
+    updateBlocks,
     event
-} : {
+}: {
     focusData: {
         value: {
             focus: VisualEditorBlockData[],
@@ -17,7 +17,7 @@ export function useVisualCommand ({
     dataModel: {
         value: VisualEditorModelValue
     },
-    updataBlocks: (blocks: VisualEditorBlockData[]) => void,
+    updateBlocks: (blocks: VisualEditorBlockData[]) => void,
     event: {
         on: {
             dragstart: (cb: () => void) => void,
@@ -32,7 +32,7 @@ export function useVisualCommand ({
     const commander = useCommander();
 
 
-     // 注册删除命令
+    // 注册删除命令
     commander.registry({
         name: 'delete',
         keyboard: ['backspace', 'delete', 'ctrl+d'],
@@ -46,11 +46,11 @@ export function useVisualCommand ({
             return {
                 redo: () => {
                     console.log('触发删除命令');
-                    updataBlocks(data.after); // 删除的就是选中的,剩下的就是未选中的
+                    updateBlocks(data.after); // 删除的就是选中的,剩下的就是未选中的
                 },
                 undo: () => {
                     console.log('撤销了删除命令');
-                    updataBlocks(data.before); // 恢复已经删除的,就是原有的数据
+                    updateBlocks(data.before); // 恢复已经删除的,就是原有的数据
                 }
             }
         }
@@ -66,10 +66,10 @@ export function useVisualCommand ({
             }
             return {
                 redo: () => {
-                    updataBlocks(deepcopy(data.after));
+                    updateBlocks(deepcopy(data.after));
                 },
                 undo: () => {
-                    updataBlocks(deepcopy(data.before));
+                    updateBlocks(deepcopy(data.before));
                 }
             }
         }
@@ -101,7 +101,7 @@ export function useVisualCommand ({
             return () => {
                 event.off.dragstart(handler.dragstart);
                 event.off.dragend(handler.dragend);
-            } 
+            }
         },
         execute() {
             const data = {
@@ -110,10 +110,10 @@ export function useVisualCommand ({
             }
             return {
                 redo: () => {
-                    updataBlocks(deepcopy(data.after));
+                    updateBlocks(deepcopy(data.after));
                 },
                 undo: () => {
-                    updataBlocks(deepcopy(data.before));
+                    updateBlocks(deepcopy(data.before));
                 },
             }
         }
@@ -139,6 +139,87 @@ export function useVisualCommand ({
         }
     })
 
+    // 注册置顶命令
+    commander.registry({
+        name: 'placeTop',
+        keyboard: 'ctrl+up',
+        execute: () => {
+            const data = {
+                before: deepcopy(dataModel.value.blocks || []),
+                after: deepcopy((() => {
+                    const { focus, unFocus } = focusData.value;
+                    const maxZIndex = unFocus.reduce((prev, block) => Math.max(prev, block.zIndex), -Infinity) + 1;
+                    focus.forEach(block => block.zIndex = maxZIndex);
+                    return deepcopy(dataModel.value.blocks || []);
+                })()),
+            }
+            return {
+                redo: () => {
+                    updateBlocks(deepcopy(data.after));
+                },
+                undo: () => {
+                    updateBlocks(deepcopy(data.before));
+                },
+            }
+        }
+    })
+
+    // 注册置底命令
+    commander.registry({
+        name: 'placeBottom',
+        keyboard: 'ctrl+down',
+        execute: () => {
+            const data = {
+                before: deepcopy(dataModel.value.blocks || []),
+                after: deepcopy((() => {
+                    const { focus, unFocus } = focusData.value;
+                    let minZIndex = unFocus.reduce((prev, block) => Math.min(prev, block.zIndex), Infinity) - 1;
+                    if (minZIndex < 0) {
+                        const dur = Math.abs(minZIndex);
+                        unFocus.forEach(block => block.zIndex += dur);
+                        minZIndex = 0;
+                    }
+                    focus.forEach(block => block.zIndex = minZIndex);
+                    return deepcopy(dataModel.value.blocks || []);
+                })()),
+            }
+            return {
+                redo: () => {
+                    updateBlocks(deepcopy(data.after));
+                },
+                undo: () => {
+                    updateBlocks(deepcopy(data.before));
+                },
+            }
+        }
+    })
+
+    // 注册编辑命令
+    commander.registry({
+        name: 'updateBlock',
+        execute: (newBlock: VisualEditorBlockData, oldBlock: VisualEditorBlockData) => {
+            const blocks = deepcopy(dataModel.value.blocks || []);
+            const data = {
+                before: blocks,
+                after: (() => {
+                    const index = (dataModel.value.blocks || []).indexOf(oldBlock);
+                    if (index > -1) {
+                        blocks.splice(index, 1, newBlock);
+                    }
+                    return deepcopy(blocks);
+                })()
+            }
+            return {
+                redo: () => {
+                    updateBlocks(deepcopy(data.after));
+                },
+                undo: () => {
+                    updateBlocks(deepcopy(data.before));
+                },
+            }
+        }
+    })
+
     return {
         undo: () => {
             // console.log('undo');
@@ -155,6 +236,17 @@ export function useVisualCommand ({
         clear: () => {
             // console.log('clear');
             commander.state.commands.clear();
+        },
+        placeTop: () => {
+            // console.log('placeTop');
+            commander.state.commands.placeTop();
+        },
+        placeBottom: () => {
+            // console.log('placeBottom');
+            commander.state.commands.placeBottom();
+        },
+        updateBlock: () => {
+            console.log('updateBlock');
         }
     }
 }

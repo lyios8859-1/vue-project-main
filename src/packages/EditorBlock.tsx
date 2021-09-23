@@ -8,7 +8,7 @@ export default defineComponent({
     block: {
       type: Object as PropType<VisualEditorBlockData>,
       required: true
-    },
+    }
   },
   setup(props) {
     const styles = computed(() => ({

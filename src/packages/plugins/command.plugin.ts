@@ -96,7 +96,7 @@ export function useCommander() {
 
     const keyboardEvent = (() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            console.log(document.activeElement ,document.body);
+            // console.log(document.activeElement ,document.body);
             
             // fix 快捷键和浏览器的事件冲突
             if (document.activeElement !== document.body) return;

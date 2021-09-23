@@ -6,6 +6,8 @@ import EditorBlock from './EditorBlock';
 import { registerConfig } from './editor-config';
 import { useVisualCommand } from './visual.command';
 import { usePlainEvent } from "./plugins/event";
+import { $$dialog } from './utils/dialog-service';
+import { ElMessageBox } from 'element-plus';
 
 export default defineComponent({
   name: 'VisualEditor',
@@ -350,6 +352,22 @@ export default defineComponent({
           console.log("清空");
           commander.clear();
         },
+      },
+      {
+        label: '导入', icon: 'icon-import', handler: async () => {
+          const text = await $$dialog.input('', '请输入倒入的JSON字符串');
+          try {
+            const data = JSON.parse(text || '');
+            dataModel.value = data; // 修改数据显示到页面
+          } catch (e) {
+            ElMessageBox.alert('解析json字符串出错');
+          }
+        }
+      },
+      {
+        label: '导出',
+        icon: 'icon-export',
+        handler: () => $$dialog.textarea(JSON.stringify(dataModel.value), '导出的JSON数据', { editReadonly: true })
       },
       {
         label: () => state.preview ? '预览' : '编辑',

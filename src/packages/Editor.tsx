@@ -121,7 +121,7 @@ export default defineComponent({
         },
         drop: (e: DragEvent) => {
           const blocks = dataModel.value.blocks || [];
-  
+          
           blocks.push(createNewBlock({
             component: currentComponent!,
             top: e.offsetY,

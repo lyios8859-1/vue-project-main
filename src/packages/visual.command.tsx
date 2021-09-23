@@ -245,8 +245,9 @@ export function useVisualCommand({
             // console.log('placeBottom');
             commander.state.commands.placeBottom();
         },
-        updateBlock: () => {
+        updateBlock: (newBlock: VisualEditorBlockData, oldBlock: VisualEditorBlockData) => {
             console.log('updateBlock');
+            commander.state.commands.updateBlock(newBlock, oldBlock)
         }
     }
 }

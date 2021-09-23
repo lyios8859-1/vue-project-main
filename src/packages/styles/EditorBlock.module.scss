@@ -1,6 +1,6 @@
 .editor-block {
   position: absolute;
-  $space: -2px;
+  $space: 0;
   &::after {
     content: '';
     position: absolute;
@@ -8,6 +8,8 @@
     left: $space;
     right: $space;
     bottom: $space;
+    width: inherit;
+    height: inherit;
   }
   &.focus {
     &::after {

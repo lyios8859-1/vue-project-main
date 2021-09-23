@@ -1,7 +1,7 @@
 import { computed, createApp, defineComponent, getCurrentInstance, inject, onBeforeUnmount, onMounted, PropType, provide, reactive, ref } from "vue";
 import { defer } from './defer';
 
-import './dropdown-service.scss';
+import './dropdown-service.less';
 
 interface DropdownServiceOption {
   reference: MouseEvent | HTMLElement,
